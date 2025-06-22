@@ -3,7 +3,11 @@ uuid = "d00da125-8b8c-4d8e-8dbb-3ec5a630b5d7"
 authors = ["Iaroslav Shilinkov <yashilinkov@gmail.com>"]
 version = "0.0.1-DEV"
 
+[deps]
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
 [compat]
+Statistics = "1.11.1"
 julia = "1.11"
 
 [extras]
