@@ -1,0 +1,13 @@
+name = "PhasedArrays"
+uuid = "d00da125-8b8c-4d8e-8dbb-3ec5a630b5d7"
+authors = ["Iaroslav Shilinkov <yashilinkov@gmail.com>"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.11"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
