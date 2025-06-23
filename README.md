@@ -10,3 +10,4 @@
 user-defined element patterns (same for all elements) in $\theta,\phi$ coordinates can be defined. 
 
 This is still work in progress.
+heavily based on Van Trees vol.4.
