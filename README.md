@@ -10,3 +10,18 @@
 user-defined element patterns (same for all elements) in $\theta,\phi$ coordinates can be defined. 
 
 This is still work in progress.
+
+---
+## How to use
+
+assuming Julia is already installed do the following in repl:
+
+```
+]
+add https://github.com/Yashilinkov/PhasedArrays.jl.git
+```
+
+then you can use the package with
+```
+using PhasedArrays
+```

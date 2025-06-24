@@ -103,3 +103,52 @@ function URA(plane::String, N1, N2, d1, d2,weights=nothing, pattern=IsotropicPat
     end
     return URA(plane, N1, N2, d1,d2, coords, weights,pattern)
 end
+
+
+#######################
+##                   ##
+##  Circular Array   ##
+##    definition     ##
+##                   ##
+#######################
+
+
+mutable struct CircularArray
+    plane::String
+    radius::Float64
+    N_elements::Int64
+    coordinates::Matrix{Float64}
+    weights
+    element_pattern::ElementPattern
+end
+
+function CircularArray(plane::String,
+            radius,N_elements,
+            weights=nothing,
+            pattern=IsotropicPattern('θ'))
+
+    if !(plane in ("xy","xz","yz"))
+        throw(ArgumentError("plane must be xy, xz or yz"))
+    end
+    Δϕ = 360/(N_elements)
+    ϕ = 0:Δϕ:360-Δϕ
+    if plane == "xy"
+        x = radius.*cosd.(ϕ)
+        y = radius.*sind.(ϕ)
+        z = zeros(N_elements)
+    elseif plane == "xz"
+        x = radius.*cosd.(ϕ)
+        y = zeros(N_elements)
+        z = radius.*sind.(ϕ)
+    elseif plane == "yz"
+        x = zeros(N_elements)
+        y = radius.*cosd.(ϕ)
+        z = radius.*sind.(ϕ)
+    end
+    coords = hcat(x, y, z)
+    if weights === nothing
+        weights = ones(N) ./ N
+    end
+    return CircularArray(plane,radius,N_elements,coords,weights,pattern)
+end
+
