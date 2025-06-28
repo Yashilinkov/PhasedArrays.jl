@@ -3,7 +3,22 @@
 ##  ULA definition   ##
 ##                   ##
 #######################
+"""
+    ULA
 
+Represents a Uniform Linear Array (ULA) of antenna elements.
+
+# Fields
+- `axis::Char`: The axis along which the array is aligned (`'x'`, `'y'`, or `'z'`).
+- `N_elements::Int64`: Number of antenna elements in the array.
+- `dist::Float64`: Inter-element spacing in meters.
+- `coordinates::Matrix{Float64}`: A 3×N matrix of element coordinates in 3D space.
+- `weights`: Complex excitation weights for each element (e.g., a vector of `ComplexF64` values).
+- `element_pattern::ElementPattern`: Radiation pattern model for the array elements (e.g., isotropic or custom pattern).
+
+# Description
+The `ULA` type defines a uniform linear antenna array with equally spaced elements aligned along a specified Cartesian axis. The array supports arbitrary excitation weights and element radiation patterns, and can be used in array factor calculations, beamforming, and electromagnetic simulations.
+"""
 mutable struct ULA
     axis::Char
     N_elements::Int64
