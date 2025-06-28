@@ -95,3 +95,57 @@ function get_directivity(pattern::Pattern)
     Prad = sum(P .* W) * dtheta * dphi /4π
     return P ./Prad
 end
+
+function get_SLL(pattern::Pattern,threshold_low_dB=-150,threshold_high_db=-10)
+    main_beam = maximum(pattern.Υ)
+    MB_idx = findall(x -> isapprox(x, MB), pattern.Υ)
+
+    P_dB = 20 * log10.(pattern.Υ ./ MB)
+
+    Mask = falses(size(P_dB))
+    visited = falses(size(P_dB)) 
+
+    for start in MB_idx
+        if visited[start]
+            continue
+        end
+
+        queue = [start]
+
+        while !isempty(queue)
+            current = popfirst!(queue)
+
+            if visited[current]
+                continue
+            end
+
+            visited[current] = true
+            Mask[current] = true
+
+            current_level = P_dB[current]
+
+            for di in -1:1, dj in -1:1
+                neighbor = CartesianIndex(Tuple(current) .+ (di, dj))
+
+                # skip out-of-bounds
+                if !checkbounds(Bool, P_dB, neighbor)
+                    continue
+                end
+
+                neighbor_level = P_dB[neighbor]
+
+                if !visited[neighbor] && neighbor_level > threshold_low_dB
+                    if current_level ≤ threshold_high_db 
+                        if neighbor_level ≤ current_level   
+                            push!(queue, neighbor)
+                        end
+                    else
+                        push!(queue, neighbor)
+                    end
+                end
+            end
+        end
+    end
+    P_dB[Mask] .= -Inf
+    return maximum(P_dB)
+end

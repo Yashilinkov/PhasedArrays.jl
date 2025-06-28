@@ -29,7 +29,8 @@ export Pattern,
     calculate_response,
     calculate_pattern,
     get_power_pattern,
-    get_directivity
+    get_directivity,
+    get_SLL
 export HansenWoodyardArray
 export apply_taper_2D!,
     linear_hamming_window,
