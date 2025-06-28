@@ -149,3 +149,26 @@ function get_SLL(pattern::Pattern,threshold_low_dB=-150,threshold_high_db=-10)
     P_dB[Mask] .= -Inf
     return maximum(P_dB)
 end
+
+function get_main_beam_direction(pattern::Pattern)
+
+    theta = pattern.theta
+    phi = pattern.phi
+    MB = maximum(pattern.Υ)
+    MB_idx = findall(x -> isapprox(x, MB), pattern.Υ)
+    return [(theta[I[1]], phi[I[2]]) for I in MB_idx]
+
+end
+
+function get_radiated_power(pattern::Pattern)
+    theta = pattern.theta
+    phi = pattern.phi
+    P = GetPowerPattern(pattern)
+    # assuming uniform grid in θ ϕ
+    dtheta = diff(theta)[1]/180*π
+    dphi = diff(phi)[1]/180*π
+    sinθ = sind.(theta)
+    W = sinθ .* ones(1,length(phi))
+    Prad = sum(P .* W) * dtheta * dphi /4π
+    return Prad
+end
