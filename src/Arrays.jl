@@ -17,7 +17,16 @@ Uniform Linear Array (ULA) of antenna elements.
 - `element_pattern::ElementPattern`: Radiation pattern model for the array elements (e.g., isotropic or custom pattern).
 
 # Description
-The `ULA` type defines a uniform linear antenna array with equally spaced elements aligned along a specified Cartesian axis. The array supports arbitrary excitation weights and element radiation patterns, and can be used in array factor calculations, beamforming, and electromagnetic simulations.
+The `ULA` type defines a uniform linear antenna array with equally spaced elements aligned along a specified Cartesian axis. 
+The array supports arbitrary excitation weights and element radiation patterns.
+```@example
+using PhasedArrays
+f = 3e9
+λ = 3e8/f
+d = 0.5*λ
+N = 5
+ula = ULA('x',N,d)
+```
 """
 mutable struct ULA
     axis::Char
