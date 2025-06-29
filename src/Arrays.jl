@@ -6,7 +6,7 @@
 """
     ULA
 
-Represents a Uniform Linear Array (ULA) of antenna elements.
+Uniform Linear Array (ULA) of antenna elements.
 
 # Fields
 - `axis::Char`: The axis along which the array is aligned (`'x'`, `'y'`, or `'z'`).
@@ -122,13 +122,13 @@ end
 
 #######################
 ##                   ##
-##  Circular Array   ##
+##    Ring Array     ##
 ##    definition     ##
 ##                   ##
 #######################
 
 
-mutable struct CircularArray
+mutable struct RingArray
     plane::String
     radius::Float64
     N_elements::Int64
@@ -137,7 +137,7 @@ mutable struct CircularArray
     element_pattern::ElementPattern
 end
 
-function CircularArray(plane::String,
+function RingArray(plane::String,
             radius,N_elements,
             weights=nothing,
             pattern=IsotropicPattern('θ'))
@@ -164,6 +164,86 @@ function CircularArray(plane::String,
     if weights === nothing
         weights = ones(N) ./ N
     end
-    return CircularArray(plane,radius,N_elements,coords,weights,pattern)
+    return RingArray(plane,radius,N_elements,coords,weights,pattern)
 end
 
+#######################
+##                   ##
+##  Circular Array   ##
+##    definition     ##
+##                   ##
+#######################
+
+
+@enum LatticeType begin
+    Rectangular
+    
+    
+end
+
+mutable struct CircularArray
+    plane::String
+    R::Float64
+    N_elements::Int64
+    lattice::LatticeType
+    coordinates::Matrix{Float64}
+    weights::Vector{ComplexF64}
+    element_pattern::ElementPattern
+end
+
+function CircularArray(plane::String, R::Float64, lattice::LatticeType, args...; kwargs...)
+    if lattice == Rectangular
+        return CircularArray(plane, R, Val(:rectangular), args...; kwargs...)
+    else
+        error("Lattice type $lattice not supported yet")
+    end
+end
+
+
+
+function CircularArray(plane::String, 
+            R::Float64, 
+            ::Val{:rectangular}, 
+            d1::Float64, 
+            d2::Float64,
+            weights=nothing,
+            element_pattern=IsotropicPattern('θ'))
+    N1 = 2R÷d1
+    N2 = 2R÷d2
+    if plane == "xy"
+        x = collect( 0:(N1))*d1
+        y = collect( 0:(N2))*d2
+        z = [0.0]
+        x .-= mean(x)
+        y .-= mean(y)
+    elseif plane == "xz"
+        x = collect( 0:(N1))*d1
+        y = [0.0]
+        z = collect( 0:(N2))*d2
+        x .-= mean(x)
+        z .-= mean(z)
+    elseif plane == "yz"
+        x = [0.0]
+        y = collect( 0:(N1))*d1
+        z = collect( 0:(N2))*d2
+        y .-= mean(y)
+        z .-= mean(z)
+    end
+    r = [hypot(x,y,z)/R for x=x,y=y,z=z]
+    mask = r .≤ 1 + eps()
+    coords = [[x[i],y[j],z[k]] for i in eachindex(x) , j in eachindex(y), k in eachindex(z) if mask[i,j,k]]
+    N_elements = sum(mask)
+
+    coords = Matrix(transpose(hcat(coords...)))
+
+    if isnothing(weights)
+        weights = ones(ComplexF64,N_elements) ./ N_elements
+    end
+    return CircularArray(plane, 
+            R, 
+            N_elements,
+            Rectangular, 
+            coords, 
+            weights, 
+            element_pattern)
+end

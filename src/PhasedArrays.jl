@@ -22,7 +22,10 @@ export TabulatedPattern,
     IsotropicPattern,
     element_gain,
     compute_dipole_pattern
-export ULA, URA
+export ULA, URA,
+    RingArray,
+    LatticeType,
+    CircularArray
 export Pattern, 
     calculate_delays,
     calculate_array_manifold,
