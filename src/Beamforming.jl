@@ -4,14 +4,49 @@
 ##                      ##
 ##########################
 
+"""
+    HansenWoodyardArray(axis::Char, N::Int, freq::Float64) -> ULA
+
+Constructs a Hansen-Woodyard endfire linear array along the specified axis.
+
+# Arguments
+- `axis`: Array orientation; must be one of `'x'`, `'y'`, or `'z'`.
+- `N`: Number of antenna elements.
+- `freq`: Operating frequency in Hz.
+
+# Returns
+A `ULA` object with Hansen-Woodyard spacing and weights that steer the beam toward the endfire direction.
+
+# Notes
+- Spacing is set to `λ/2 * (1 - 1/N)` for enhanced endfire directivity.
+- The beam is steered to:
+  - θ=90°, ϕ=0° for `'x'`-axis
+  - θ=90°, ϕ=90° for `'y'`-axis
+  - θ=0° for `'z'`-axis
+
+# Example
+```julia
+array = HansenWoodyardArray('y', 10, 3e9)
+```
+"""
 function HansenWoodyardArray(axis::Char, N::Int, freq)
+    if !(axis in ['x', 'y', 'z'])
+        throw(ArgumentError("axis must be one of 'x', 'y', or 'z'"))
+    end
+    
     λ = 3e8/freq
     d = λ/2 * (1-1/N)
-    array = ULA('x',N,d)
-    pw = PlaneWave(90.0,0.0,freq)
-
+    if axis == 'x'
+        array = ULA('x',N,d)
+        pw = PlaneWave(90.0,0.0,freq)
+    elseif axis == 'y'
+        array = ULA('y',N,d)
+        pw = PlaneWave(90.0,90.0,freq)
+    elseif axis == 'z'
+        array = ULA('z',N,d)
+        pw = PlaneWave(0.0,0.0,freq)
+    end
     w = calculate_array_manifold(array,pw)
-    array.axis = axis
     array.weights = w
     return array
 end
@@ -21,7 +56,33 @@ end
 ## Separable tapers     ##
 ##  (1d tapers)         ##
 
+"""
+    apply_taper_2D!(array::URA, taper::Function, axis::Symbol)
 
+Applies a 2D tapering function (with separable kernels) to the weights of a uniform rectangular array (`URA`).
+
+# Arguments
+- `array`: A `URA` instance whose weights will be modified in-place.
+- `taper`: A function that takes an integer `N` and returns a vector of length `N` representing the taper weights along one dimension.
+- `axis`: Specifies which dimensions to apply the taper on.  
+    - `:dim1` applies taper along the first axis.  
+    - `:dim2` applies taper along the second axis.  
+    - `:both` applies same taper on both axes.
+
+# Behavior
+The function constructs a 2D taper weight matrix by taking the outer product of the taper vectors along each dimension.  
+It multiplies the existing weights element-wise by this taper matrix and then normalizes the resulting weights so that the sum of their absolute values is 1.
+
+# Notes
+- The `weights` field of `array` is updated in-place.
+- The function assumes the weights vector can be reshaped into `(N1, N2)`, where `N1` and `N2` are the array dimensions.
+
+# Example
+```julia
+tukey = N -> linear_tukey_window(N, 0.5)  # Example taper function
+apply_taper_2D!(ura, tukey, :both)
+```
+"""
 function apply_taper_2D!(Array::URA,Taper,axis)
     # Taper is a function that accepts N (length) and returns a vector window of length N
     # axis can be :both, :dim1, or :dim2
@@ -37,30 +98,49 @@ function apply_taper_2D!(Array::URA,Taper,axis)
     else
         w2 = ones(Array.N2)
     end
-    # Construct 2D taper by outer product (N2 x N1)
+
     weights2D = w1 * transpose(w2)
-    # Reshape weights vector into matrix (N2 rows, N1 cols)
+
     weightsMatrix = reshape(Array.weights, (Array.N1, Array.N2))
 
     weightsMatrix .*= weights2D
 
-    # Update weights vector
+
     Array.weights .= vec(weightsMatrix) ./ sum(abs, weightsMatrix)
     return nothing
 end
 
 
+"""
+    linear_hamming_window(N)
 
+Returns a normalized Hamming window of length `N`.
+
+Used to taper array weights to reduce sidelobe levels. The window is normalized to have maximum value 1.
+"""
 function linear_hamming_window(N)
     w = 0.54 .- 0.46 .* cos.(2π .* (0:N-1) ./ (N-1))
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_hann_window(N)
+
+Returns a normalized Hann window of length `N`.
+
+A cosine-based taper that reduces sidelobes. Maximum value is normalized to 1.
+"""
 function linear_hann_window(N)
     w = 0.5 .- 0.5 .* cos.(2π .* (0:N-1) ./ (N-1))
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_bartlett_hann_window(N)
+
+Returns a normalized Bartlett-Hann window of length `N`.
+Normalized to peak 1.
+"""
 function linear_bartlett_hann_window(N)
 
     w = zeros(Float64, N)
@@ -71,12 +151,26 @@ function linear_bartlett_hann_window(N)
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_blackman_window(N)
+
+Returns a normalized Blackman window of length `N`.
+
+Provides good sidelobe suppression at the cost of wider mainlobe. Normalized to peak 1.
+"""
 function linear_blackman_window(N)
     n = 0:N-1
     w = 0.42 .- 0.5*cos.(2π*n/(N-1)) .+ 0.08*cos.(4π*n/(N-1))
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_blackman_harris_window(N)
+
+Returns a normalized Blackman-Harris window of length `N`.
+
+High sidelobe suppression, typically better than standard Blackman. Normalized to 1.
+"""
 function linear_blackman_harris_window(N)
     n = 0:N-1
     a0, a1, a2, a3 = 0.35875, 0.48829, 0.14128, 0.01168
@@ -84,6 +178,13 @@ function linear_blackman_harris_window(N)
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_kaiser_window(N, β)
+
+Returns a normalized Kaiser window of length `N` with shape parameter `β`.
+
+Useful for controlling sidelobe levels via `β`. Normalized to peak 1.
+"""
 function linear_kaiser_window(N, β)
     n = 0:N-1
     α = (N-1)/2
@@ -91,6 +192,16 @@ function linear_kaiser_window(N, β)
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_tukey_window(N, α)
+
+Returns a normalized Tukey (tapered cosine) window of length `N` with tapering parameter `α` ∈ [0, 1].
+
+- `α = 0` → rectangular window
+- `α = 1` → Hann window
+
+Normalized to maximum value 1.
+"""
 function linear_tukey_window(N, α)
     if α < 0.0 || α > 1.0
         throw(ArgumentError("Tukey window parameter α must be between 0 and 1, got α = $α"))
@@ -110,6 +221,13 @@ function linear_tukey_window(N, α)
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_gaussian_window(N, σ)
+
+Returns a normalized Gaussian window of length `N` with spread parameter `σ`.
+
+smaller `σ` results in wider mainlobe and lower sidelobes. Normalized to peak 1.
+"""
 function linear_gaussian_window(N, σ)
     n = 0:N-1
     a = (N - 1) / 2
@@ -117,6 +235,18 @@ function linear_gaussian_window(N, σ)
     return w./ maximum(abs.(w))
 end
 
+"""
+    linear_dolph_cheb_window(N, R, d, λ)
+
+Computes Dolph-Chebyshev window of length `N` for a ULA with element spacing `d` and wavelength `λ`.
+
+# Arguments
+- `R`: Desired sidelobe level in dB (e.g. -20).
+- `d`: Element spacing in meters.
+- `λ`: Wavelength in meters.
+
+Returns a real-valued weight vector normalized to unit gain in the endfire direction.
+"""
 function linear_dolph_cheb_window(N,R,d, λ)
     # N - number of elements
     # R - SLL in dB (for example -20)
@@ -150,6 +280,19 @@ function linear_dolph_cheb_window(N,R,d, λ)
     return real.(w)
 end
 
+"""
+    linear_taylor_window(N, R, n̄, d, λ)
+
+Generates a Taylor window with `N` elements, sidelobe level `R` (dB), and `n̄` equal-level sidelobes.
+
+# Arguments
+- `R`: Desired sidelobe level in dB (for example -20).
+- `n̄`: Number of equal sidelobes + 1. Must be between 1 and N–1.
+- `d`: Element spacing in meters.
+- `λ`: Wavelength in meters.
+
+Returns a real-valued taper optimized for sidelobe control in antenna arrays.
+"""
 function linear_taylor_window(N,R,n̄,d,λ)
     # N - number of elements
     # R - SLL in dB (for example -20)
@@ -197,6 +340,26 @@ end
 ##  radial tapers   ##
 ##                  ##
 
+"""
+    apply_radial_taper!(array::URA, taper_fun::Function, n::Int)
+
+Applies a radial taper to the weights of a `URA` array in-place.
+
+# Arguments
+- `array`: A `URA` (Uniform Rectangular Array) whose weights will be modified.
+- `taper_fun`: A function mapping normalized radius ∈ [0, 1] to a taper value.
+- `n`: Number of outer radial rings (based on unique distance levels) to suppress fully (i.e., taper to zero).
+
+# Behavior
+- Computes distance of each element from array center.
+- Applies taper based on normalized radius `r/r_max`, where `r_max` is the distance to the `n`-th inner ring.
+- Weights are multiplied by the taper and normalized.
+
+# Example
+```julia
+apply_radial_taper!(ura, radial_hann_window, 1)
+```
+"""
 function apply_radial_taper!(Array::URA, taper_fun::Function, n)
     # n is the number of rings "removed" from the array, 
     # starting with corner elements
@@ -222,29 +385,68 @@ function apply_radial_taper!(Array::URA, taper_fun::Function, n)
     return nothing
 end
 
+"""
+    radial_hann_window(r::Float64)
+
+Returns the value of a Hann window evaluated at normalized radius `r ∈ [0, 1]`.
+
+Used in radial tapers for circular or rectangular arrays.
+"""
 function radial_hann_window(r)
     w = 0.5 * (1 - cos(π * (1 - r)))
     return w
 end
+"""
+    radial_hamming_window(r::Float64)
 
+Returns the value of a Hamming window at normalized radius `r`.
+
+Commonly used for moderate sidelobe suppression in array tapering.
+"""
 function radial_hamming_window(r)
     return 0.54 - 0.46 * cos(2π * (0.5r+0.5))
 end
 
+"""
+    Radial_bartlett_hann_window(r::Float64)
+
+Returns Bartlett-Hann window evaluated at normalized radius `r`.
+
+Hybrid taper with smoother roll-off and moderate sidelobe control.
+"""
 function Radial_bartlett_hann_window(r)
     return 0.62 - 0.48 * abs(0.5*r) + 0.38 * cos(π * r)
 end
 
+"""
+    radial_blackman_window(r::Float64)
+
+Blackman window evaluated at normalized radius `r`.
+
+Provides stronger sidelobe suppression than Hann or Hamming.
+"""
 function radial_blackman_window(r)
     return 0.42 - 0.5*cos(2π*(0.5r+0.5)) + 0.08*cos(4π*(0.5r+0.5))
 end
 
+"""
+    radial_blackman_harris_window(r::Float64)
+
+Returns Blackman-Harris window at normalized radius `r`.
+
+"""
 function radial_blackman_harris_window(r)
     a₀, a₁, a₂, a₃ = 0.35875, 0.48829, 0.14128, 0.01168
     r̄ = 0.5*r-0.5
    return a₀ - a₁*cos(2π*r̄)+a₂*cos(4π*r̄) - a₃*cos(6π*r̄)
 end
 
+"""
+    radial_kaiser_window(r::Float64, β::Float64)
+
+Returns Kaiser window value at normalized radius `r`, with shape parameter `β`.
+
+"""
 function radial_kaiser_window(r,β)
     if r ≤ 1
         return besseli(0,β*sqrt(1-r^2))/besseli(0, β)
@@ -253,7 +455,15 @@ function radial_kaiser_window(r,β)
     end
 end
 
+"""
+    radial_tukey_window(r::Float64, α::Float64)
 
+Returns Tukey (tapered cosine) window value at normalized radius `r`, with tapering parameter `α ∈ [0, 1]`.
+
+- `α = 0` gives rectangular window
+- `α = 1` gives Hann window
+
+"""
 function radial_tukey_window(r,α)
     if α < 0.0 || α > 1.0
     throw(ArgumentError("Tukey window parameter α must be between 0 and 1, got α = $α"))
@@ -275,6 +485,21 @@ end
 ##                      ##
 ##########################
 
+"""
+    woodward_sampling(N, d, λ, goalPattern) -> Vector{ComplexF64}
+
+Computes array weights using Woodward (spatial) sampling method.
+
+# Arguments
+- `N`: Number of elements.
+- `d`: Element spacing (in meters).
+- `λ`: Wavelength (in meters).
+- `goalPattern`: A function `u -> desired pattern`, where `u = cos(θ)` is the directional cosine.
+
+# Returns
+Complex weight vector that approximates the desired pattern over sampled points.
+
+"""
 function woodward_sampling(N,d,λ,goalPattern)
     # sampling points in directional cosines
     m = collect(0:N-1)
@@ -293,6 +518,22 @@ function woodward_sampling(N,d,λ,goalPattern)
     
 end
 
+"""
+    least_squares_synthesis(N, d, λ, Bd; θrange=0.0:0.1:180.0) -> Vector{ComplexF64}
+
+Computes array weights using least-squares pattern synthesis.
+
+# Arguments
+- `N`: Number of elements.
+- `d`: Element spacing.
+- `λ`: Wavelength.
+- `Bd`: Desired pattern as a function of `u = cos(θ)`.
+- `θrange`: Angle range in degrees over which the pattern is matched (default: `0.0:0.1:180.0`).
+
+# Returns
+Weight vector that minimizes the squared error between the desired and actual beam pattern.
+
+"""
 function least_squares_synthesis(N,d,λ,Bd::Function; θrange=0.0:0.1:180.0)
     f = 3e8/λ
     k = 2π/λ
@@ -314,12 +555,34 @@ end
 #
 # example goalPatterns
 #
+"""
+    flattop(HalfWidth)
 
+Returns a function `u -> 1 or 0`, representing a flat-top beam pattern of given half-width (in degrees).
+
+# Arguments
+- `HalfWidth`: Angular half-width of the flat region in degrees.
+
+# Returns
+Function defined on directional cosine `u = cos(θ)`, with `1` inside the main lobe and `0` outside.
+"""
 function flattop(HalfWidth)
     # half width in degrees
     return u -> abs(u) ≤ abs(cosd(90-HalfWidth)) ? 1.0 : 0.0
 end
 
+"""
+    raised_cosine(HalfWidth, rolloff)
+
+Returns a function representing a raised-cosine-shaped beam pattern in the directional cosine domain.
+
+# Arguments
+- `HalfWidth`: Half-width of the main lobe (in degrees).
+- `rolloff`: Transition width (in directional cosine units).
+
+# Returns
+A smooth beam pattern tapering from 1 to 0 around the edge of the flat region.
+"""
 function raised_cosine(HalfWidth, rolloff)
     u₀ = abs(cosd(90-HalfWidth))
     return u -> begin
@@ -334,12 +597,32 @@ function raised_cosine(HalfWidth, rolloff)
     end
 end
 
-# usage:
+"""
+    sinc_pattern(scale)
+
+Returns a sinc-based beam shaping function.
+
+# Arguments
+- `scale`: Controls the lobe spacing and width in the directional cosine domain.
+
+# Returns
+A function `u -> sinc(scale * u)`, centered at broadside.
+"""
 function sinc_pattern(scale)
     return u -> sinc(scale * u)
 end
 
+"""
+    gaussian_pattern(σ)
 
+Returns a Gaussian-shaped pattern in the directional cosine domain.
+
+# Arguments
+- `σ`: Standard deviation controlling the width of the main lobe.
+
+# Returns
+A function `u -> exp(-u^2 / (2σ^2))` for smooth, bell-shaped beam shaping.
+"""
 function gaussian_pattern(σ)
     return u -> exp(-(u^2) / (2 * σ^2))
 end
