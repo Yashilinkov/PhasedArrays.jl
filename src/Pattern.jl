@@ -36,37 +36,19 @@ function calculate_response(Array, plane_wave::PlaneWave)
     return dot(w, Vk) * F
 end
 
-function calculate_pattern(Array,freq)
+function CalculatePattern(Array,freq)
     theta = 0:0.5:180
     phi = 0:360
     Υθ = zeros(ComplexF64,(length(theta),length(phi)))
     Υϕ = zeros(ComplexF64,(length(theta),length(phi)))
-    w = Array.weights
-    p = Array.coordinates
-    β = 2π * freq / 3e8
 
+    for (i,θ) in enumerate(theta)
+        for (j,ϕ) in enumerate(phi)
+            pw1 = PlaneWave(θ,ϕ,freq,1.0+0.0im,0.0+0.0im)
+            pw2 = PlaneWave(θ,ϕ,freq,0.0+0.0im,1.0+0.0im)
+            Υθ[i,j] = CalculateResponse(Array,pw1)
+            Υϕ[i,j] = CalculateResponse(Array,pw2)
 
-    for i in 1:length(theta)
-        θ = theta[i]
-        for j in 1:length(phi)
-            ϕ = phi[j]
-            Gθ, Gϕ = element_gain(Array.element_pattern, θ, ϕ)
-    
-            kx = -β * sind(θ) * cosd(ϕ)
-            ky = -β * sind(θ) * sind(ϕ)
-            kz = -β * cosd(θ)
-    
-            sθ = 0.0 + 0.0im
-            sϕ = 0.0 + 0.0im
-            for n in 1:size(p, 1)
-                kdotr = kx*p[n,1] + ky*p[n,2] + kz*p[n,3]
-                phase = exp(-1im * kdotr)
-                sθ += w[n] * phase
-                sϕ += w[n] * phase
-            end
-    
-            Υθ[i,j] = sθ * Gθ
-            Υϕ[i,j] = sϕ * Gϕ
         end
     end
     return Pattern(theta,phi,Υθ,Υϕ)
