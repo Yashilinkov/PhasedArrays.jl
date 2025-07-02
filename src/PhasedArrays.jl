@@ -24,7 +24,7 @@ export TabulatedPattern,
     compute_dipole_pattern
 export ULA, URA,
     RingArray,
-    LatticeType,
+    Rectangular,
     CircularArray
 export Pattern, 
     calculate_delays,

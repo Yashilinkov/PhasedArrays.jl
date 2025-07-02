@@ -247,11 +247,9 @@ Computes Dolph-Chebyshev window of length `N` for a ULA with element spacing `d`
 
 Returns a real-valued weight vector normalized to unit gain in the endfire direction.
 """
-function linear_dolph_cheb_window(N,R,d, λ)
-    # N - number of elements
-    # R - SLL in dB (for example -20)
-    # d interelement distance (m)
-    # λ wavelength (m)
+function linear_dolph_cheb_window(N,R)
+    λ = 0.01
+    d = 0.5λ
     f₀ = 3e8/λ
     ula = ULA('z',N,d)
     R′ = 10^(-R/20)
@@ -293,7 +291,7 @@ Generates a Taylor window with `N` elements, sidelobe level `R` (dB), and `n̄` 
 
 Returns a real-valued taper optimized for sidelobe control in antenna arrays.
 """
-function linear_taylor_window(N,R,n̄,d,λ)
+function linear_taylor_window(N,R,n̄)
     # N - number of elements
     # R - SLL in dB (for example -20)
     # n̄ - number of first equal-ish sidelobes +1
@@ -304,7 +302,8 @@ function linear_taylor_window(N,R,n̄,d,λ)
     elseif n̄ ≤ 0
         throw(ArgumentError("n̄ is between 1 and N-1"))
     end
-
+    λ = 0.01
+    d = 0.5λ
     ula = ULA('z',N,d)
     R′ = 10^(-R/20)
     x₀ = cosh(1/(N-1)*log(R′+sqrt(R′^2-1)))
