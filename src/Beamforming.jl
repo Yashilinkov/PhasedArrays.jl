@@ -384,6 +384,20 @@ function apply_radial_taper!(Array::URA, taper_fun::Function, n)
     return nothing
 end
 
+function apply_radial_taper!(Array::CircularArray,taper_fun::Function)
+    R = Array.R
+    coords = eachrow(Array.coordinates)
+    N = Array.N_elements
+    w = zeros(ComplexF64,N)
+    for (p_ind,p) in enumerate(coords)
+        r = hypot(p...)/R
+        w[p_ind] = taper_fun(r)
+    end
+    w ./= sum(abs.(w))
+    Array.weights = w
+    return nothing
+end
+
 """
     radial_hann_window(r::Float64)
 
