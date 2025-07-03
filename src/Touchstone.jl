@@ -114,6 +114,6 @@ while !isempty(data)
         empty!(block)
     end
 end
-return params, freqs
+return params, freqs.*frequency_multiplier
 end
 
