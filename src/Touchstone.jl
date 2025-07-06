@@ -1,12 +1,26 @@
 
 ## Touchstone V1 only
-## MA only
+
 
 # work in progress
 
+struct NetworkParameters
+    N_ports::Int64
+    R_ref::Float64
+    frequencies::Vector{Float64}
+    frequency_prefix::String # GHZ, MHZ, KHZ, HZ
+    params::Vector{Matrix{ComplexF64}}
+    parameter_type::String # S or Z or Y or G or H 
+
+    noise_freqiencies::Union{Nothing, Vector{Float64}}
+    NF_min::Union{Nothing, Vector{Float64}}
+    Gamma_opt::Union{Nothing, Vector{Float64}}
+    r_norm_noise::Union{Nothing, Vector{Float64}}
+    metadata::Dict{String, Any}
+
+end
 
 function get_N_ports(filename::String)
-        
     ext = splitext(uppercase( filename))[2]
     m = match(r"\.S(\d+)P", ext)
 
@@ -20,100 +34,122 @@ function get_N_ports(filename::String)
 end
 
 
-function parse_touchstone(filename::String)
-    N = get_N_ports(filename)
+function parse_touchstone(filename::String)::NetworkParameters
 
-lines = uppercase.(readlines(filename))
-# remove coments and empty lines 
-filter!(line -> !isempty(strip(line)),lines)
-comments = filter(line -> startswith(strip(line),"!"),lines)
+    #Calculate N_ports
+    N_ports = get_N_ports(filename)
 
-lines_no_comments = filter(line -> !startswith(strip(line),"!"),lines)
+    ## find options and data
+    data = []
+    option_line = []
+    found_option_line = false
+    for line in split.(eachline(filename))
 
-# Option line
-option_line = filter(line -> startswith(strip(line),"#"),lines_no_comments)
-
-tokens = split(option_line...)
-
-# frequency
-frequency_multipliers = [1e9,1e6,1e3,1]
-frequency_prefixes = ["GHZ","MHZ","KHZ","HZ"]
-default_frequency_prefix = "GHZ"
-default_frequency_multiplier = 1e9
-
-freq_mult_idx = findfirst([prfx in tokens for prfx in frequency_prefixes])
-if isnothing(freq_mult_idx)
-    frequency_multiplier = default_frequency_multiplier
-    frequency_prefix = default_frequency_prefix
-else
-    frequency_multiplier = frequency_multipliers[freq_mult_idx]
-    frequency_prefix = frequency_prefixes[freq_mult_idx]
-end
-
-# parameter
-parameter_types = ["S","Y","Z","H","G"]
-default_parameter_type = "S"
-par_type_idx = findfirst([pt in tokens for pt in parameter_types])
-
-parameter_type = isnothing(par_type_idx) ? default_parameter_type : parameter_types[par_type_idx]
-
-# format
-formats = ["DB","MA","RI"]
-default_format = "MA"
-
-fmt_idx = findfirst([fmt in tokens for fmt in formats])
-format = isnothing(fmt_idx) ? default_format : formats[fmt_idx]
-
-# Ref impedance
-default_ref_resistance = 50
-R_idx = findfirst(tokens .== "R")
-ref_R = isnothing(R_idx) ? default_ref_resistance : parse(Float64,tokens[R_idx+1])
-
-data_lines = filter(line -> !startswith(strip(line),"#"),lines_no_comments)
-data = split.(strip.(data_lines))
-
-# if N == 2 then order is F, S11, S21, S12, S22 !!!!!!
-# if not, then order is s11 s12 s13 ... S21 S22 S23 ... and so on
-
-block_length = (N*N*2+1)
-N_entries = sum(length.(data))
-
-if N_entries%block_length == 0
-    N_freqs = N_entries÷block_length
-else
-    error("simething is wrong with data, expect N_entries%blocklength == 0")
-end
-
-
-freqs = zeros(Float64,N_freqs)
-params = []
-
-block = []
-
-i = 1
-while !isempty(data)
-    append!(block,popfirst!(data))
-    if length(block) == block_length
-        freqs[i] = parse(Float64,popfirst!(block))
-        if format == "MA"
-            mag_angle = parse.(Float64,block)
-            params_tmp = ComplexF64[]
-
-            for j in 1:2:length(mag_angle)
-                append!(params_tmp,mag_angle[j]*cis(mag_angle[j+1]/180*π))
-            end
-            params_tmp = reshape(params_tmp,N,N)
-            if N > 2
-                params_tmp=Matrix(transpose(params_tmp))
-            end
-            push!(params,params_tmp)
-        else
-            error("$format in not implemented yet")
+        if line[1] == "!" # do nothing, it is comment
+        elseif line[1] == "#" && !found_option_line
+            option_line = uppercase.(line)
+        else 
+            comm_idx = findfirst(isequal("!"),line)
+            isnothing(comm_idx) ? push!(data,line) : push!(data,line[1:comm_idx-1])
         end
-        i += 1
-        empty!(block)
     end
-end
-return params, freqs.*frequency_multiplier
+
+    # Parse options
+    frequency_prefix = intersect(option_line, ["GHZ", "MHZ", "KHZ", "HZ"])
+    frequency_prefix = isempty(frequency_prefix) ? "GHZ" : frequency_prefix[1]
+    parameter_type = intersect(option_line, ["S", "Z", "Y", "H","G"])
+    parameter_type = isempty(parameter_type) ? "S" : parameter_type[1] 
+    format = intersect(option_line, ["MA", "DB", "RI"])
+    format = isempty(format) ? "MA" : format[1]
+
+    R_ref_idx = findfirst(==("R"), option_line)
+    R_ref     = isnothing(R_ref_idx) ? 50.0 : parse(Float64, option_line[R_ref_idx + 1])
+
+
+    # declare fields
+    frequencies = Float64[]
+    noise_frequencies = Float64[]
+    NF_min = Float64[]
+    Gamma_opt = ComplexF64[]
+    r_norm_noise = Float64[]
+    params = Matrix{ComplexF64}[]
+    block = []
+
+    if N_ports == 1
+        first_line_length = 3
+    elseif N_ports == 3
+        first_line_length = 7
+    else
+        first_line_length = 9
+    end
+    block_length = 2*N_ports^2
+
+    # parse data 
+    for (line_idx,line) in enumerate(data)
+        # Frequency line
+        if length(line) == first_line_length
+            current_frequency = parse(Float64, line[1])
+            parsed_data = parse.(Float64, line[2:end])
+    
+            if isempty(frequencies)
+                push!(frequencies, current_frequency)
+            elseif current_frequency > frequencies[end]
+                push!(frequencies, current_frequency)
+            else
+                display(current_frequency)
+                display(frequencies[end])
+                display(line_idx)
+                error("Frequency decreased at line $line_idx: $current_frequency < $(frequencies[end])")
+    
+            end
+    
+            append!(block, parsed_data)
+        
+        
+        elseif length(line) == 5 && N_ports == 2 # noise data
+            current_noise_frequency = parse(Float64, line[1])
+            if current_noise_frequency ≤ frequencies[end]
+                append!(noise_frequencies,current_noise_frequency)
+                append!(NF_min,parse(Float64, line[2]))
+                append!(Gamma_opt,parse(Float64, line[3])*cis(parse(Float64, line[4])))
+                append!(r_norm_noise,parse(Float64, line[5]))
+            end
+    
+        else # Continuation line
+            append!(block, parse.(Float64, line))
+        end
+    
+        # Once we have a full block, process it
+        if length(block) == block_length
+            tmp_mtrx = if format == "MA"
+                reshape([block[i] * cis(block[i+1] * π / 180) for i in 1:2:block_length-1], N_ports, N_ports)
+            elseif format == "RI"
+                reshape([block[i] + im*block[i+1] for i in 1:2:block_length-1],N_ports,N_ports)
+            elseif format == "DB"
+                reshape([10^(block[i]/20) * cis(block[i+1] * π / 180) for i in 1:2:block_length-1], N_ports, N_ports)
+            else
+                error("Format $format is not supported")
+            end
+    
+            push!(params, N_ports == 2 ? transpose(tmp_mtrx) : tmp_mtrx)
+            empty!(block)
+        end
+    end
+
+
+    return NetworkParameters(N_ports, 
+                                R_ref,
+                                frequencies,
+                                frequency_prefix,
+                                params,
+                                parameter_type,
+                                noise_frequencies,
+                                NF_min,
+                                Gamma_opt,
+                                r_norm_noise,
+                                Dict())
+
+
+
 end
 
