@@ -33,6 +33,8 @@ export Pattern,
     calculate_pattern,
     get_power_pattern,
     get_directivity,
+    get_main_beam_direction,
+    get_radiated_power,
     get_SLL
 export HansenWoodyardArray
 export apply_taper_2D!,

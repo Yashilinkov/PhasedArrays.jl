@@ -36,23 +36,48 @@ function calculate_response(Array, plane_wave::PlaneWave)
     return dot(w, Vk) * F
 end
 
-function calculate_pattern(Array,freq)
+function calculate_pattern(arr, freq)
     theta = 0:0.5:180
     phi = 0:360
-    Υθ = zeros(ComplexF64,(length(theta),length(phi)))
-    Υϕ = zeros(ComplexF64,(length(theta),length(phi)))
-    w = Array.weights
-    p = Array.coordinates
+    Nθ, Nϕ = length(theta), length(phi)
+
+    Υθ = Matrix{ComplexF64}(undef, Nθ, Nϕ)
+    Υϕ = Matrix{ComplexF64}(undef, Nθ, Nϕ)
+
+    w = arr.weights
+    p = arr.coordinates
+
+    N = arr.N_elements
     β = 2π * freq / 3e8
-    k = [[-β * sind(θ) * cosd(ϕ),-β * sind(θ) * sind(ϕ),-β * cosd(θ)] for θ in theta, ϕ in phi]
-    Gθ = [element_gain(Array.element_pattern, θ, ϕ)[1] for θ in theta, ϕ in phi]
-    Gϕ = [element_gain(Array.element_pattern, θ, ϕ)[2] for θ in theta, ϕ in phi]
-    AF = [sum(w .*cis.(-p*k[i,j])) for i in 1:length(theta),j in 1:length(phi)]
-    Υθ = AF .* Gθ
-    Υϕ = AF .* Gϕ
 
+    sinθarr = sind.(theta)
+    cosθarr = cosd.(theta)
+    sinϕarr = sind.(phi)
+    cosϕarr = cosd.(phi)
 
-    return Pattern(theta,phi,Υθ,Υϕ)
+    @inbounds for i in 1:Nθ
+        sinθ = sinθarr[i]
+        cosθ = cosθarr[i]
+        @inbounds for j in 1:Nϕ
+            sinϕ = sinϕarr[j]
+            cosϕ = cosϕarr[j]
+
+            kx = -β * sinθ * cosϕ
+            ky = -β * sinθ * sinϕ
+            kz = -β * cosθ
+
+            acc = 0.0 + 0.0im
+            @inbounds for n in 1:N
+                dotprod = p[n,1]*kx + p[n,2]*ky + p[n,3]*kz
+                acc += w[n] * cis(-dotprod)
+            end
+
+            Υθ[i,j] = acc * element_gain(arr.element_pattern, theta[i], phi[j])[1] 
+            Υϕ[i,j] = acc * element_gain(arr.element_pattern, theta[i], phi[j])[2] 
+        end
+    end
+
+    return Pattern(theta, phi, Υθ, Υϕ)
 end
 
 ##########################
@@ -81,9 +106,9 @@ end
 
 function get_SLL(pattern::Pattern,threshold_low_dB=-150,threshold_high_db=-10)
     main_beam = maximum(pattern.Υ)
-    MB_idx = findall(x -> isapprox(x, MB), pattern.Υ)
+    MB_idx = findall(x -> isapprox(x, main_beam), pattern.Υ)
 
-    P_dB = 20 * log10.(pattern.Υ ./ MB)
+    P_dB = 20 * log10.(pattern.Υ ./ main_beam)
 
     Mask = falses(size(P_dB))
     visited = falses(size(P_dB)) 

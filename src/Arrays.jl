@@ -35,7 +35,7 @@ mutable struct ULA
     N_elements::Int64
     dist::Float64
     coordinates::Matrix{Float64}
-    weights
+    weights::Vector{ComplexF64}
     element_pattern::ElementPattern
 end
 
@@ -120,7 +120,7 @@ mutable struct URA
     d1::Float64
     d2::Float64
     coordinates::Matrix{Float64}
-    weights
+    weights::Vector{ComplexF64}
     element_pattern::ElementPattern
 end
 
@@ -219,7 +219,7 @@ mutable struct RingArray
     radius::Float64
     N_elements::Int64
     coordinates::Matrix{Float64}
-    weights
+    weights::Vector{ComplexF64}
     element_pattern::ElementPattern
 end
 
