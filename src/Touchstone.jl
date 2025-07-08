@@ -14,7 +14,7 @@ struct NetworkParameters
 
     noise_freqiencies::Union{Nothing, Vector{Float64}}
     NF_min::Union{Nothing, Vector{Float64}}
-    Gamma_opt::Union{Nothing, Vector{Float64}}
+    Gamma_opt::Union{Nothing, Vector{ComplexF64}}
     r_norm_noise::Union{Nothing, Vector{Float64}}
     metadata::Dict{String, Any}
 
@@ -153,3 +153,24 @@ function parse_touchstone(filename::String)::NetworkParameters
 
 end
 
+function get_sparams(ntw::NetworkParameters,idx1::Int,idx2::Int)
+    if ntw.parameter_type == "S"
+        return [param[idx1,idx2] for param in ntw.params]
+    elseif ntw.parameter_type == "Z"
+        return[param[idx1,idx2] for param in z2s.(ntw.params,ntw.R_ref)]
+    else
+        display("Not implemented yet for this kind of network parameters")
+    end
+end
+
+function s2z(S::Matrix,R_ref::Float64)
+    G = I * np.R_ref
+    F = I * (1/(2*sqrt(abs(np.R_ref))))
+    return F^-1*(I-S)^-1 * (S*G+conj(G))*F
+end
+
+function z2s(Z::Matrix,R_ref::Float64)
+    G = I * np.R_ref
+    F = I * (1/(2*sqrt(abs(np.R_ref))))
+    return F*(Z-conj(G))*(Z+G)^-1*F^-1
+end
