@@ -117,6 +117,7 @@ mutable struct URA
     plane::String
     N1::Int64
     N2::Int64
+    N_elements::Int64
     d1::Float64
     d2::Float64
     coordinates::Matrix{Float64}
@@ -186,7 +187,7 @@ function URA(plane::String, N1, N2, d1, d2,weights=nothing, pattern=IsotropicPat
     if weights === nothing
         weights = ones(N) ./ N
     end
-    return URA(plane, N1, N2, d1,d2, coords, weights,pattern)
+    return URA(plane, N1, N2,N1*N2, d1,d2, coords, weights,pattern)
 end
 
 
