@@ -640,3 +640,23 @@ function gaussian_pattern(σ)
     return u -> exp(-(u^2) / (2 * σ^2))
 end
 
+
+
+##########################
+##                      ##  
+##  Misc Beamforming    ##
+##      related         ##
+##                      ##
+##########################
+
+function truncate_phase!(arr,bits::Int)
+    if bits == 0
+        return nothing
+    else
+        Δϕ = 2π/2^bits
+        w = arr.weights
+        phase = round.(angle.(w)/Δϕ).*Δϕ
+        arr.weights .= abs.(w).*cis.(phase)
+        return nothing   
+    end 
+end  
