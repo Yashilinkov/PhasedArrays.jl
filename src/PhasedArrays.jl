@@ -4,8 +4,7 @@ module PhasedArrays
 using Statistics
 using LinearAlgebra
 using SpecialFunctions
-# using GLMakie
-# using Base.Threads
+using GLMakie
 using StaticArrays
 
 # -------- includes -------
@@ -15,6 +14,8 @@ include("ElementPatterns.jl")
 include("Arrays.jl")
 include("Pattern.jl")
 include("Beamforming.jl")
+include("Visualization.jl")
+
 
 # ------- exports ----------
 export PlaneWave
@@ -61,7 +62,17 @@ export woodward_sampling,
     flattop,
     raised_cosine,
     sinc_pattern,
-    gaussian_pattern
-
+    gaussian_pattern,
+    truncate_phase!,
+    truncate_phase
+export PatternType,
+    PatternLin,
+    PatterndB,
+    DirectivityLin,
+    DirectivitydB,
+    PowerLin,
+    PowerdB,
+    plot_pattern_cuts,
+    get_pattern_values
 
 end

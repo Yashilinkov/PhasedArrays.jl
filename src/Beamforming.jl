@@ -660,3 +660,13 @@ function truncate_phase!(arr,bits::Int)
         return nothing   
     end 
 end  
+
+function truncate_phase(w::Vector{ComplexF64},bits::Int)
+    if bits == 0
+        return return w
+    else
+        Δϕ = 2π/2^bits
+        phase = round.(angle.(w)/Δϕ).*Δϕ
+        return  abs.(w).*cis.(phase)
+    end 
+end

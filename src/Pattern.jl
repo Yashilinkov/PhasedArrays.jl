@@ -88,7 +88,7 @@ end
 
 
 function get_power_pattern(pattern::Pattern)
-    return abs.(pattern.Υ).^2
+    return abs2.(pattern.Υ)
 end
 
 function get_directivity(pattern::Pattern)
