@@ -37,11 +37,7 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
-      # - uses: julia-actions/julia-runtest@v1
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
-      - name: Run tests with virtual display
-        run: xvfb-run -s "-screen 0 1920x1080x24" julia --project=@. -e 'using Pkg; Pkg.test()'
+      - uses: julia-actions/julia-runtest@v1
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -55,32 +51,21 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v2
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
       - name: Configure doc environment
-  run: xvfb-run -s "-screen 0 1920x1080x24" julia --project=docs --color=yes -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
+        shell: julia --project=docs --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
       - uses: julia-actions/julia-buildpkg@v1
-
-      #   # shell: julia --project=docs --color=yes {0}
-      #   run: |
-      #     using Pkg
-      #     Pkg.develop(PackageSpec(path=pwd()))
-      #     Pkg.instantiate()
-      # - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
       - name: Run doctests
-       run: |
-          xvfb-run -s "-screen 0 1920x1080x24" julia --project=docs --color=yes -e 
+        shell: julia --project=docs --color=yes {0}
+        run: |
           using Documenter: DocMeta, doctest
           using PhasedArrays
           DocMeta.setdocmeta!(PhasedArrays, :DocTestSetup, :(using PhasedArrays); recursive=true)
-          doctest(PhasedArrays)'
-        # shell: julia --project=docs --color=yes {0}
-        # run: |
-        #   using Documenter: DocMeta, doctest
-        #   using PhasedArrays
-        #   DocMeta.setdocmeta!(PhasedArrays, :DocTestSetup, :(using PhasedArrays); recursive=true)
-        #   doctest(PhasedArrays)
+          doctest(PhasedArrays)
