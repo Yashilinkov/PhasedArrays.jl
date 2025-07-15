@@ -55,21 +55,32 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v2
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
       - name: Configure doc environment
-        shell: julia --project=docs --color=yes {0}
-        run: |
-          using Pkg
-          Pkg.develop(PackageSpec(path=pwd()))
-          Pkg.instantiate()
+  run: xvfb-run -s "-screen 0 1920x1080x24" julia --project=docs --color=yes -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
       - uses: julia-actions/julia-buildpkg@v1
+
+      #   # shell: julia --project=docs --color=yes {0}
+      #   run: |
+      #     using Pkg
+      #     Pkg.develop(PackageSpec(path=pwd()))
+      #     Pkg.instantiate()
+      # - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
       - name: Run doctests
-        shell: julia --project=docs --color=yes {0}
-        run: |
+       run: |
+          xvfb-run -s "-screen 0 1920x1080x24" julia --project=docs --color=yes -e 
           using Documenter: DocMeta, doctest
           using PhasedArrays
           DocMeta.setdocmeta!(PhasedArrays, :DocTestSetup, :(using PhasedArrays); recursive=true)
-          doctest(PhasedArrays)
+          doctest(PhasedArrays)'
+        # shell: julia --project=docs --color=yes {0}
+        # run: |
+        #   using Documenter: DocMeta, doctest
+        #   using PhasedArrays
+        #   DocMeta.setdocmeta!(PhasedArrays, :DocTestSetup, :(using PhasedArrays); recursive=true)
+        #   doctest(PhasedArrays)
