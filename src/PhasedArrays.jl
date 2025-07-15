@@ -72,7 +72,9 @@ export PatternType,
     DirectivitydB,
     PowerLin,
     PowerdB,
+    get_pattern_values,
     plot_pattern_cuts,
-    get_pattern_values
+    plot_pattern_uv,
+    plot_pattern_3D
 
 end

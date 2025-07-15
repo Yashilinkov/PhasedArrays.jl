@@ -28,6 +28,8 @@ f = 3e9
 d = 0.5*λ
 N = 5
 ula = ULA('x',N,d)
+patt = calculate_pattern(ula,f)
+fig = plot_pattern_cuts(patt,DirectivitydB)
 ```
 """
 mutable struct ULA

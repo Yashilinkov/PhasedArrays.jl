@@ -36,7 +36,7 @@ function get_pattern_values(patt::Pattern,pattern_type::PatternType)
     elseif pattern_type == DirectivityLin
         return get_directivity(patt)
     elseif pattern_type == DirectivitydB
-        return 20*log10(get_directivity(patt))
+        return 20*log10.(get_directivity(patt))
     else
         error("Unsupported PatternType: $(pattern_type)")
     end
@@ -65,10 +65,6 @@ function plot_pattern_cuts(patt::Pattern,patter_type::PatternType; theta=nothing
     return fig
 
 end
-
-
-
-
 
 
 function plot_pattern_uv(patt::Pattern, patter_type::PatternType)
@@ -112,5 +108,37 @@ function plot_pattern_uv(patt::Pattern, patter_type::PatternType)
     
     surface!(ax1,u_u,v_u,values_u;shading = false)
     surface!(ax2,u_l,v_l,values_l;shading = false)
+    return fig
+end
+
+function plot_pattern_3D(patt::Pattern,patter_type::PatternType;min_val=-40.0 )
+
+    values = get_pattern_values(patt,patter_type)
+
+    min_value = max(min_val,minimum(values))
+    max_value = maximum(values)
+    
+    values_scaled = (values .- min_value) ./ (max_value-min_value)
+    values_scaled .= max.(values_scaled,0)
+
+    theta = patt.theta
+    phi = patt.phi
+
+    x = zeros(Float64,length(theta),length(phi))
+    y = zeros(Float64,length(theta),length(phi))
+    z = zeros(Float64,length(theta),length(phi))
+
+    for (i,θ) in enumerate(theta), (j,ϕ) in enumerate(phi)
+        x[i,j] = values_scaled[i,j] * sind(θ)*cosd(ϕ)
+        y[i,j] = values_scaled[i,j] * sind(θ)*sind(ϕ)
+        z[i,j] = values_scaled[i,j] * cosd(θ)
+    end
+
+
+    fig = Figure()
+    ax = Axis3(fig[1,1])
+
+    surface!(ax,x,y,z,color=values_scaled,shading=false,colormap=:viridis)
+    limits!(-1,1,-1,1,-1,1)
     return fig
 end
