@@ -23,6 +23,7 @@ The array supports arbitrary excitation weights and element radiation patterns.
 Example use:
 ```@example
 using PhasedArrays
+using GLMakie
 f = 3e9
 λ = 3e8/f
 d = 0.5*λ
