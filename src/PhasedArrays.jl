@@ -4,7 +4,8 @@ module PhasedArrays
 using Statistics
 using LinearAlgebra
 using SpecialFunctions
-using GLMakie
+# using GLMakie
+using CairoMakie
 using StaticArrays
 
 # -------- includes -------
