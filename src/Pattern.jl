@@ -1,3 +1,19 @@
+"""
+    Pattern(theta, phi, Υθ, Υϕ)
+
+Construct a `Pattern` object representing the far-field response of an array.
+
+# Arguments
+- `theta::AbstractVector{<:Real}`: Vector of θ angles (degrees).
+- `phi::AbstractVector{<:Real}`: Vector of ϕ angles (degrees).
+- `Υθ::Matrix{ComplexF64}`: Complex θ-polarized far-field response.
+- `Υϕ::Matrix{ComplexF64}`: Complex ϕ-polarized far-field response.
+
+# Returns
+A `Pattern` object with total complex field:
+    Υ = sqrt.(abs2.(Υθ) + abs2.(Υϕ))
+"""
+
 struct Pattern
     theta
     phi
@@ -18,6 +34,14 @@ function calculate_delays(Array, plane_wave)
     return p*a
 end
 
+"""
+    calculate_array_manifold(Array, plane_wave::PlaneWave)
+
+Compute the array manifold vector for a given plane wave.
+
+# Returns
+A complex vector of phase shifts for all array elements.
+"""
 function calculate_array_manifold(Array, plane_wave::PlaneWave)
     p = Array.coordinates
     k = plane_wave.k
@@ -25,6 +49,19 @@ function calculate_array_manifold(Array, plane_wave::PlaneWave)
     return Vk
 end
 
+"""
+    calculate_response(Array, plane_wave::PlaneWave)
+
+Compute complex array response (scalar) to an incoming `PlaneWave`.
+
+Combines:
+- Array weights
+- Element pattern
+- Plane wave polarization and direction
+
+# Returns
+Response of the array with given element pattern and weights.
+"""
 function calculate_response(Array, plane_wave::PlaneWave)
     
     w = Array.weights
@@ -36,6 +73,27 @@ function calculate_response(Array, plane_wave::PlaneWave)
     return dot(w, Vk) * F
 end
 
+"""
+    calculate_pattern(arr, freq) -> Pattern
+
+Compute the far-field radiation pattern of an antenna array at a given frequency.
+
+This function evaluates the complex far-field response over a spherical grid of angles `(θ, ϕ)`
+assuming plane-wave excitation and using the array weights and element pattern. The result includes
+the θ- and ϕ-polarized components as well as the combined total field magnitude.
+
+# Arguments
+- `arr`: A struct representing the array.
+- `freq::Real`: Frequency in Hz at which to compute the pattern.
+
+# Returns
+- `Pattern` object containing:
+  - `theta`: θ angles in degrees (`0:0.5:180`).
+  - `phi`: ϕ angles in degrees (`0:1:360`).
+  - `Υθ`: θ-polarized complex far-field.
+  - `Υϕ`: ϕ-polarized complex far-field.
+  - `Υ`: Total field magnitude √(|Υθ|² + |Υϕ|²)
+"""
 function calculate_pattern(arr, freq)
     theta = 0:0.5:180
     phi = 0:360
@@ -171,7 +229,7 @@ end
 function get_radiated_power(pattern::Pattern)
     theta = pattern.theta
     phi = pattern.phi
-    P = GetPowerPattern(pattern)
+    P = get_power_pattern(pattern)
     # assuming uniform grid in θ ϕ
     dtheta = diff(theta)[1]/180*π
     dphi = diff(phi)[1]/180*π

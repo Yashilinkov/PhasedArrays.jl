@@ -649,6 +649,22 @@ end
 ##                      ##
 ##########################
 
+"""
+    truncate_phase!(arr, bits::Int)
+
+In-place phase quantization of array weights.
+
+The phase of each complex weight is quantized to the nearest level among `2^bits` uniformly spaced values on the unit circle. The magnitude of each weight is preserved.
+
+# Arguments
+- `arr`: antenna array struct.
+- `bits`: Number of phase bits for quantization. If `bits == 0`, no modification is performed.
+
+# Example
+```julia
+truncate_phase!(ula, 3)  # Quantize to 8 phase levels
+```
+"""
 function truncate_phase!(arr,bits::Int)
     if bits == 0
         return nothing
@@ -661,6 +677,26 @@ function truncate_phase!(arr,bits::Int)
     end 
 end  
 
+"""
+    truncate_phase(w::Vector{ComplexF64}, bits::Int) -> Vector{ComplexF64}
+
+Returns a new vector of complex weights with quantized phase.
+
+The phase of each complex number in `w` is quantized to the nearest level among `2^bits` values evenly spaced on the unit circle. 
+The magnitude of each weight is preserved.
+
+# Arguments
+- `w`: Vector of complex weights to be quantized.
+- `bits`: Number of bits used for phase quantization. If `bits == 0`, returns the original vector.
+
+# Returns
+- New `Vector{ComplexF64}` with quantized phases.
+
+# Example
+```julia
+wq = truncate_phase(w, 2)  # Quantize phase to 4 levels
+```
+"""
 function truncate_phase(w::Vector{ComplexF64},bits::Int)
     if bits == 0
         return return w
