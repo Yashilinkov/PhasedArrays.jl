@@ -136,7 +136,7 @@ function plot_pattern_3D(patt::Pattern,patter_type::PatternType;min_val=-40.0 )
 
 
     fig = Figure()
-    ax = Axis3(fig[1,1])
+    ax = Axis3(fig[1,1], azimuth=0.3π)
 
     surface!(ax,x,y,z,color=values_scaled,shading=false,colormap=:viridis)
     limits!(-1,1,-1,1,-1,1)

@@ -16,7 +16,7 @@ include("Arrays.jl")
 include("Pattern.jl")
 include("Beamforming.jl")
 include("Visualization.jl")
-
+include("Misc.jl")
 
 # ------- exports ----------
 export PlaneWave
@@ -77,5 +77,5 @@ export PatternType,
     plot_pattern_cuts,
     plot_pattern_uv,
     plot_pattern_3D
-
+export parse_mdf
 end
