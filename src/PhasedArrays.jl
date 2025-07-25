@@ -20,7 +20,8 @@ include("Misc.jl")
 
 # ------- exports ----------
 export PlaneWave
-export TabulatedPattern,
+export ElementPattern,
+    TabulatedPattern,
     IsotropicPattern,
     element_gain,
     compute_dipole_pattern
@@ -77,5 +78,6 @@ export PatternType,
     plot_pattern_cuts,
     plot_pattern_uv,
     plot_pattern_3D
-export parse_mdf
+export parse_mdf,
+    parse_ffs
 end

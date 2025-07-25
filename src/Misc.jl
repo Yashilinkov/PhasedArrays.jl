@@ -1,3 +1,9 @@
+##
+##
+##  import from various sources
+##
+##
+
 function parse_mdf(filename::String)
     reading_block = false
     data = Dict{String, Any}()
@@ -110,3 +116,79 @@ function parse_mdf(filename::String)
     end
     return data
 end
+
+
+
+
+function parse_ffs(filename::String)
+    lines = readlines(filename)
+
+    meta = Dict{String, Any}()
+    data = Dict{String, Any}()
+    data["phi"] = Float64[]
+    data["theta"] = Float64[]
+    data["E_Theta"] = ComplexF64[]
+    data["E_Phi"] = ComplexF64[]
+    num_entries = Inf
+    vars = []
+    reading_data = false
+
+    phi = Float64[]
+    theta = Float64[]
+    E_Theta = ComplexF64[]
+    E_Phi = ComplexF64[]
+
+    for (i,line) in enumerate(strip.(lines))
+        if occursin("Version", line)
+            meta["version"] = strip(lines[i+1])
+
+        elseif occursin("Data Type", line)
+            meta["data_type"] = strip(lines[i+1])
+
+        elseif occursin("#Frequencies", line)
+            meta["num_frequencies"] = parse(Int, strip(lines[i+1]))
+
+        elseif occursin("Position", line)
+            meta["position"] = parse.(Float64, split(strip(lines[i+1])))
+
+        elseif occursin("zAxis", line)
+            meta["z_axis"] = parse.(Float64, split(strip(lines[i+1])))
+
+        elseif occursin("xAxis", line)
+            meta["x_axis"] = parse.(Float64, split(strip(lines[i+1])))
+
+        elseif occursin("Radiated/Accepted/Stimulated Power", line)
+            meta["power_radiated"] = parse(Float64, strip(lines[i+1]))
+            meta["power_accepted"] = parse(Float64, strip(lines[i+2]))
+            meta["power_stimulated"] = parse(Float64, strip(lines[i+3]))
+            meta["frequency"] = parse(Float64, strip(lines[i+4]))
+
+        elseif occursin(">> Total #phi samples", line)
+            nums = split(strip(lines[i+1]))
+            meta["phi_samples"] = parse(Int, nums[end - 1])
+            meta["theta_samples"] = parse(Int, nums[end])
+        elseif occursin(">> Phi, Theta,",line)
+            vars = split(line)[3:end]
+            for var in vars
+                data[var] = []
+            end
+            num_entries = length(vars)
+            reading_data = true
+        end
+
+        if reading_data == true && length(split(line)) == num_entries
+            vals = parse.(Float64,split(line))
+
+            # hardcoded order, sorry
+            push!(data["phi"],vals[1])
+            push!(data["theta"],vals[2])
+            push!(data["E_Theta"],vals[3]+im*vals[4])
+            push!(data["E_Phi"],vals[5]+im*vals[6])
+
+        end
+
+
+    end
+    return data
+end
+

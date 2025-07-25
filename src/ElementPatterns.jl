@@ -40,6 +40,16 @@ struct TabulatedPattern <: ElementPattern
 end
 
 """
+        FarfieldSource is a struct for patterns imported fron CST Studio
+"""
+struct FarfieldSource <: ElementPattern 
+    theta::Vector{Float64}
+    phi::Vector{Float64}
+    Eθ::Vector{ComplexF64}
+    Eϕ::Vector{ComplexF64}
+end
+
+"""
     element_gain(p::IsotropicPattern, θ, ϕ)
 
 Returns the electric field components `(Eθ, Eϕ)` of an isotropic element
@@ -88,6 +98,11 @@ function element_gain(p::TabulatedPattern, θ, ϕ)
     j = findfirst(p.phi .== ϕ)
     
     return p.Eθ[i,j], p.Eϕ[i,j]
+end
+
+function element_gain(p::FarfieldSource, θ0::Real, ϕ0::Real)
+    idx = findfirst(i -> p.phi[i] == ϕ0 && p.theta[i] == θ0, eachindex(phi))
+    return p.Eθ[idx],p.Eϕ[idx] 
 end
 
 function compute_dipole_pattern(axis::Char, θ, ϕ)
