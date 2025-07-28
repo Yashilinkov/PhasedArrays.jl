@@ -129,6 +129,7 @@ function parse_ffs(filename::String)
     data["theta"] = Float64[]
     data["E_Theta"] = ComplexF64[]
     data["E_Phi"] = ComplexF64[]
+    data["meta"] = []
     num_entries = Inf
     vars = []
     reading_data = false
@@ -169,9 +170,9 @@ function parse_ffs(filename::String)
             meta["theta_samples"] = parse(Int, nums[end])
         elseif occursin(">> Phi, Theta,",line)
             vars = split(line)[3:end]
-            for var in vars
-                data[var] = []
-            end
+            # for var in vars
+            #     data[var] = []
+            # end
             num_entries = length(vars)
             reading_data = true
         end
@@ -189,6 +190,8 @@ function parse_ffs(filename::String)
 
 
     end
+
+    data["meta"] = meta
     return data
 end
 

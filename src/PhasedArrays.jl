@@ -10,25 +10,28 @@ using StaticArrays
 
 # -------- includes -------
 
+include("Touchstone.jl")
+include("Misc.jl")
 include("PlaneWave.jl")
 include("ElementPatterns.jl")
 include("Arrays.jl")
 include("Pattern.jl")
 include("Beamforming.jl")
 include("Visualization.jl")
-include("Misc.jl")
 
 # ------- exports ----------
 export PlaneWave
 export ElementPattern,
     TabulatedPattern,
     IsotropicPattern,
+    FarfieldSource,
     element_gain,
     compute_dipole_pattern
 export ULA, URA,
     RingArray,
     Rectangular,
-    CircularArray
+    CircularArray,
+    CustomPhasedArray
 export Pattern, 
     calculate_delays,
     calculate_array_manifold,
@@ -78,6 +81,8 @@ export PatternType,
     plot_pattern_cuts,
     plot_pattern_uv,
     plot_pattern_3D
+export parse_touchstone,
+    NetworkParameters
 export parse_mdf,
     parse_ffs
 end

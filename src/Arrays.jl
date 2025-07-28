@@ -400,3 +400,63 @@ function CircularArray(plane::String,
             weights, 
             element_pattern)
 end
+
+
+######################
+##                  ##
+## Custom Arrays    ##
+##                  ##
+######################
+
+mutable struct CustomPhasedArray
+    N_elements::Int
+    phase_centres::Matrix{Float64}
+    weights::Vector{ComplexF64}
+    element_patterns::Vector{FarfieldSource}
+    network_params::NetworkParameters
+end
+
+function CustomPhasedArray(folder::String)
+    ffs_files = filter(f -> occursin(r"_\[\d+\]\.ffs$", f), readdir(folder))
+    
+    sort!(ffs_files; by = f -> begin
+        m = match(r"_\[(\d+)\]\.ffs$", f)
+        m === nothing ? 0 : parse(Int, m.captures[1])
+    end
+    )
+    N = length(ffs_files)
+    element_patterns = FarfieldSource[]
+    coordinates = Vector{Vector{Float64}}()
+    weights = ComplexF64[]
+
+    for ffs_file in ffs_files
+        full_path = joinpath(folder, ffs_file)
+        display(full_path)
+        data_tmp = parse_ffs(full_path)
+        push!(element_patterns, FarfieldSource(
+            data_tmp["theta"],
+            data_tmp["phi"],
+            data_tmp["E_Theta"],
+            data_tmp["E_Phi"]
+            )
+        )
+        push!(coordinates, data_tmp["meta"]["position"])
+        push!(weights, 1.0 + 0im)
+    end
+
+    coordinates = Array(transpose(hcat(coordinates...)))
+
+    snp_file = only(filter(f -> occursin(r"\.s\d+p$", f), readdir(folder)))
+    full_path = joinpath(folder, snp_file)
+    display(full_path)
+    ntw = parse_touchstone(full_path)
+
+    arr = CustomPhasedArray(
+        N,
+        coordinates,
+        weights,
+        element_patterns,
+        ntw
+    )
+    return arr
+end

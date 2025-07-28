@@ -49,6 +49,17 @@ struct FarfieldSource <: ElementPattern
     Eϕ::Vector{ComplexF64}
 end
 
+function FarfieldSource(filename::String)::FarfieldSource
+    data = parse_ffs(filename)
+    el_patt = FarfieldSource(
+        data["theta"],
+        data["phi"],
+        data["E_Theta"],
+        data["E_Phi"],
+    )
+    return el_patt
+end
+
 """
     element_gain(p::IsotropicPattern, θ, ϕ)
 
@@ -101,8 +112,12 @@ function element_gain(p::TabulatedPattern, θ, ϕ)
 end
 
 function element_gain(p::FarfieldSource, θ0::Real, ϕ0::Real)
-    idx = findfirst(i -> p.phi[i] == ϕ0 && p.theta[i] == θ0, eachindex(phi))
+    idx = findfirst(i -> p.phi[i] == ϕ0 && p.theta[i] == θ0, eachindex(p.phi))
+    if ~isnothing(idx)
     return p.Eθ[idx],p.Eϕ[idx] 
+    else
+        
+    end
 end
 
 function compute_dipole_pattern(axis::Char, θ, ϕ)
