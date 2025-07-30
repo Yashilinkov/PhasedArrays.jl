@@ -433,13 +433,7 @@ function CustomPhasedArray(folder::String)
         full_path = joinpath(folder, ffs_file)
         display(full_path)
         data_tmp = parse_ffs(full_path)
-        push!(element_patterns, FarfieldSource(
-            data_tmp["theta"],
-            data_tmp["phi"],
-            data_tmp["E_Theta"],
-            data_tmp["E_Phi"]
-            )
-        )
+        push!(element_patterns, FarfieldSource(data_tmp))
         push!(coordinates, data_tmp["meta"]["position"])
         push!(weights, 1.0 + 0im)
     end

@@ -138,6 +138,29 @@ function calculate_pattern(arr, freq)
     return Pattern(theta, phi, Υθ, Υϕ)
 end
 
+function calculate_pattern(arr::CustomPhasedArray)
+    theta = 0:0.5:180
+    phi = 0:360
+    interpolate_custom_array!(arr,theta,phi)
+    Nθ, Nϕ = length(theta), length(phi)
+
+    Υθ = zeros(ComplexF64,Nθ,Nϕ)
+    Υϕ = zeros(ComplexF64,Nθ,Nϕ)
+
+    w = arr.weights
+    phase_centres = arr.phase_centres
+
+    N = arr.N_elements
+
+    @inbounds for n in 1:N
+        Υθ .+= arr.element_patterns[n].Eθ .* w[n]
+        Υϕ .+= arr.element_patterns[n].Eϕ .* w[n]
+                
+    end
+
+    return Pattern(theta, phi, Υθ, Υϕ)
+end
+
 ##########################
 ##                      ##
 ## Pattern statistics   ## 
