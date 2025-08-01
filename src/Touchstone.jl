@@ -6,10 +6,10 @@
 
 struct NetworkParameters
     N_ports::Int64
-    R_ref::Float64
+    R_ref::Vector{Float64}
     frequencies::Vector{Float64}
-    frequency_prefix::String # GHZ, MHZ, KHZ, HZ
-    params::Vector{Matrix{ComplexF64}}
+    # frequency_prefix::String # GHZ, MHZ, KHZ, HZ
+    params::Array{ComplexF64, 3}
     parameter_type::String # S or Z or Y or G or H 
 
     noise_freqiencies::Union{Nothing, Vector{Float64}}
@@ -57,13 +57,22 @@ function parse_touchstone(filename::String)::NetworkParameters
     # Parse options
     frequency_prefix = intersect(option_line, ["GHZ", "MHZ", "KHZ", "HZ"])
     frequency_prefix = isempty(frequency_prefix) ? "GHZ" : frequency_prefix[1]
+    if frequency_prefix == "GHZ"
+        frequency_scale = 1e9
+    elseif frequency_prefix == "MHZ"
+        frequency_scale = 1e6
+    elseif frequency_prefix == "KHZ"
+        frequency_scale = 1e3
+    elseif frequency_prefix == "HZ"
+        frequency_scale = 1e0
+    end
     parameter_type = intersect(option_line, ["S", "Z", "Y", "H","G"])
     parameter_type = isempty(parameter_type) ? "S" : parameter_type[1] 
     format = intersect(option_line, ["MA", "DB", "RI"])
     format = isempty(format) ? "MA" : format[1]
 
     R_ref_idx = findfirst(==("R"), option_line)
-    R_ref     = isnothing(R_ref_idx) ? 50.0 : parse(Float64, option_line[R_ref_idx + 1])
+    R_ref = ones(N_ports) * (isnothing(R_ref_idx) ? 50.0 : parse(Float64, option_line[R_ref_idx + 1]))
 
 
     # declare fields
@@ -92,9 +101,9 @@ function parse_touchstone(filename::String)::NetworkParameters
             parsed_data = parse.(Float64, line[2:end])
     
             if isempty(frequencies)
-                push!(frequencies, current_frequency)
-            elseif current_frequency > frequencies[end]
-                push!(frequencies, current_frequency)
+                push!(frequencies, current_frequency*frequency_scale)
+            elseif current_frequency*frequency_scale > frequencies[end]
+                push!(frequencies, current_frequency*frequency_scale)
             else
                 display(current_frequency)
                 display(frequencies[end])
@@ -135,13 +144,12 @@ function parse_touchstone(filename::String)::NetworkParameters
             empty!(block)
         end
     end
-
+    params_3d = cat(params...; dims=3)
 
     return NetworkParameters(N_ports, 
                                 R_ref,
                                 frequencies,
-                                frequency_prefix,
-                                params,
+                                params_3d,
                                 parameter_type,
                                 noise_frequencies,
                                 NF_min,
@@ -153,15 +161,8 @@ function parse_touchstone(filename::String)::NetworkParameters
 
 end
 
-function get_sparams(ntw::NetworkParameters,idx1::Int,idx2::Int)
-    if ntw.parameter_type == "S"
-        return [param[idx1,idx2] for param in ntw.params]
-    elseif ntw.parameter_type == "Z"
-        return[param[idx1,idx2] for param in z2s.(ntw.params,ntw.R_ref)]
-    else
-        display("Not implemented yet for this kind of network parameters")
-    end
-end
+
+
 
 function s2z(S::Matrix,R_ref::Float64)
     G = I * np.R_ref
