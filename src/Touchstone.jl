@@ -8,7 +8,6 @@ struct NetworkParameters
     N_ports::Int64
     R_ref::Vector{Float64}
     frequencies::Vector{Float64}
-    # frequency_prefix::String # GHZ, MHZ, KHZ, HZ
     params::Array{ComplexF64, 3}
     parameter_type::String # S or Z or Y or G or H 
 
@@ -162,6 +161,11 @@ function parse_touchstone(filename::String)::NetworkParameters
 end
 
 
+########################
+##
+## Utility functions
+##
+########################
 
 
 function s2z(S::Matrix,R_ref::Float64)
@@ -174,4 +178,48 @@ function z2s(Z::Matrix,R_ref::Float64)
     G = I * np.R_ref
     F = I * (1/(2*sqrt(abs(np.R_ref))))
     return F*(Z-conj(G))*(Z+G)^-1*F^-1
+end
+
+"""
+    connect_sparams(S1, S2, connections)
+
+Connect two N-port networks S1 and S2.  
+
+- `connections` = vector of tuples `(i,j)` where `i` is internal port of S1, `j` internal port of S2.
+- Returns the reduced S-matrix of the composite network seen at external ports.
+"""
+function connect_sparams(S1::AbstractMatrix, S2::AbstractMatrix, connections::Vector{Tuple{Int,Int}})
+    N1, N2 = size(S1,1), size(S2,1)
+    @assert size(S1,1) == size(S1,2)
+    @assert size(S2,1) == size(S2,2)
+
+    # Build block-diagonal S
+    Sbig = zeros(eltype(S1), N1+N2, N1+N2)
+    Sbig[1:N1, 1:N1] .= S1
+    Sbig[N1+1:end, N1+1:end] .= S2
+
+    # Map connections to global indices
+    internal_ports = Int[]
+    for (i,j) in connections
+        push!(internal_ports, i)
+        push!(internal_ports, N1 + j)
+    end
+    external_ports = setdiff(1:(N1+N2), internal_ports)
+
+    # Partition Sbig
+    See = Sbig[external_ports, external_ports]
+    Sei = Sbig[external_ports, internal_ports]
+    Sie = Sbig[internal_ports, external_ports]
+    Sii = Sbig[internal_ports, internal_ports]
+
+    # Build K matrix for swaps
+    nconn = length(connections)
+    K = zeros(eltype(S1), 2*nconn, 2*nconn)
+    for idx = 1:nconn
+        K[2*idx-1:2*idx, 2*idx-1:2*idx] .= [0 1; 1 0]
+    end
+
+    # Reduced S-matrix
+    Sred = See - Sei * inv(Sii - K) * Sie
+    return Sred
 end
