@@ -188,17 +188,12 @@ Connect two N-port networks S1 and S2.
 - `connections` = vector of tuples `(i,j)` where `i` is internal port of S1, `j` internal port of S2.
 - Returns the reduced S-matrix of the composite network seen at external ports.
 """
-function connect_sparams(S1::AbstractMatrix, S2::AbstractMatrix, connections::Vector{Tuple{Int,Int}})
-    N1, N2 = size(S1,1), size(S2,1)
-    @assert size(S1,1) == size(S1,2)
-    @assert size(S2,1) == size(S2,2)
+function connect_sparams(S1::Array{T,3}, S2::Array{T,3}, connections::Vector{Tuple{Int,Int}}) where {T}
+    N1, _, Nf = size(S1)
+    N2, _, Nf2 = size(S2)
+    @assert Nf == Nf2 "S1 and S2 must have same number of frequency points"
 
-    # Build block-diagonal S
-    Sbig = zeros(eltype(S1), N1+N2, N1+N2)
-    Sbig[1:N1, 1:N1] .= S1
-    Sbig[N1+1:end, N1+1:end] .= S2
-
-    # Map connections to global indices
+    # Build index lists
     internal_ports = Int[]
     for (i,j) in connections
         push!(internal_ports, i)
@@ -206,20 +201,67 @@ function connect_sparams(S1::AbstractMatrix, S2::AbstractMatrix, connections::Ve
     end
     external_ports = setdiff(1:(N1+N2), internal_ports)
 
-    # Partition Sbig
-    See = Sbig[external_ports, external_ports]
-    Sei = Sbig[external_ports, internal_ports]
-    Sie = Sbig[internal_ports, external_ports]
-    Sii = Sbig[internal_ports, internal_ports]
-
-    # Build K matrix for swaps
     nconn = length(connections)
-    K = zeros(eltype(S1), 2*nconn, 2*nconn)
+    K = zeros(T, 2nconn, 2nconn)
     for idx = 1:nconn
-        K[2*idx-1:2*idx, 2*idx-1:2*idx] .= [0 1; 1 0]
+        K[2idx-1:2idx, 2idx-1:2idx] .= [0 1; 1 0]
     end
 
-    # Reduced S-matrix
-    Sred = See - Sei * inv(Sii - K) * Sie
+    # Allocate result
+    Nex = length(external_ports)
+    Sred = Array{T,3}(undef, Nex, Nex, Nf)
+
+    # Loop over frequencies (unavoidable)
+    for k in 1:Nf
+        # Build block-diagonal Sbig
+        Sbig = zeros(T, N1+N2, N1+N2)
+        Sbig[1:N1,1:N1] = S1[:,:,k]
+        Sbig[N1+1:end,N1+1:end] = S2[:,:,k]
+
+        # Partition
+        See = Sbig[external_ports, external_ports]
+        Sei = Sbig[external_ports, internal_ports]
+        Sie = Sbig[internal_ports, external_ports]
+        Sii = Sbig[internal_ports, internal_ports]
+
+        # Reduced S
+        Sred[:,:,k] = See - Sei * ((Sii - K) \ Sie)
+    end
+
     return Sred
+end
+
+
+function connect_networks(N1::NetworkParameters,
+                          N2::NetworkParameters,
+                          connections::Vector{Tuple{Int,Int}})
+    @assert N1.parameter_type == "S" && N2.parameter_type == "S" "Only S-parameters supported for now"
+    @assert N1.frequencies == N2.frequencies "Frequencies must match"
+    @assert N1.R_ref == N2.R_ref "Reference impedances must match"
+
+    freqs = N1.frequencies
+    Rref = N1.R_ref
+
+    # Combine
+    Sred = connect_sparams(N1.params, N2.params, connections)
+
+    # Metadata
+    new_metadata = Dict(
+    "origin" => "connect_networks",
+    "inputs" => (N1.metadata, N2.metadata),
+    "connections" => connections,
+    )
+
+    return NetworkParameters(
+        size(Sred,1),      # new N_ports
+        Rref,              # same reference impedances
+        freqs,             # same frequency grid
+        Sred,              # combined S-parameters
+        "S",               # still S-parameters
+        nothing,           # noise frequencies (not handled yet)
+        nothing,           # NF_min
+        nothing,           # Gamma_opt
+        nothing,           # r_norm_noise
+        new_metadata
+        )
 end
