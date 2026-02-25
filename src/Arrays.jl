@@ -454,3 +454,8 @@ function CustomPhasedArray(folder::String)
     )
     return arr
 end
+
+
+function interpolate_custom_array!(arr,theta,phi)
+    
+end

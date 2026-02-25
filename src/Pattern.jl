@@ -148,7 +148,7 @@ function calculate_pattern(arr::CustomPhasedArray)
     Υϕ = zeros(ComplexF64,Nθ,Nϕ)
 
     w = arr.weights
-    phase_centres = arr.phase_centres
+    # phase_centres = arr.phase_centres
 
     N = arr.N_elements
 
@@ -160,6 +160,30 @@ function calculate_pattern(arr::CustomPhasedArray)
 
     return Pattern(theta, phi, Υθ, Υϕ)
 end
+
+function interpolate_custom_array!(arr::CustomPhasedArray, theta_grid, phi_grid)
+    # materialize to vectors (Ranges are fine, but we’ll use values a lot)
+    θg = collect(theta_grid)
+    ϕg = collect(phi_grid)
+
+    # If user gives 0:360, drop the last point (duplicate of 0)
+    if !isempty(ϕg) && isapprox(ϕg[end] - ϕg[1], 360; atol=1e-12, rtol=0)
+        ϕg = ϕg[1:end-1]
+    end
+
+    # Normalize phi grid to [0,360) and keep it sorted (important for argmin neighbor logic)
+    ϕg = mode.(ϕg,360)
+    sort!(ϕg)
+
+    # Interpolate each element’s pattern to θg, ϕg
+    @inbounds for n in 1:arr.N_elements
+        arr.element_patterns[n] = interpolate_ffs(arr.element_patterns[n], θg, ϕg)
+    end
+
+    return arr
+end
+
+
 
 ##########################
 ##                      ##
