@@ -167,9 +167,9 @@ function interpolate_custom_array!(arr::CustomPhasedArray, theta_grid, phi_grid)
     ϕg = collect(phi_grid)
 
     # If user gives 0:360, drop the last point (duplicate of 0)
-    if !isempty(ϕg) && isapprox(ϕg[end] - ϕg[1], 360; atol=1e-12, rtol=0)
-        ϕg = ϕg[1:end-1]
-    end
+    # if !isempty(ϕg) && isapprox(ϕg[end] - ϕg[1], 360; atol=1e-12, rtol=0)
+    #     ϕg = ϕg[1:end-1]
+    # end
 
     # Normalize phi grid to [0,360) and keep it sorted (important for argmin neighbor logic)
     ϕg = mod.(ϕg,360)
