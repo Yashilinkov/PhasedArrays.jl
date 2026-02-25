@@ -172,7 +172,7 @@ function interpolate_custom_array!(arr::CustomPhasedArray, theta_grid, phi_grid)
     end
 
     # Normalize phi grid to [0,360) and keep it sorted (important for argmin neighbor logic)
-    ϕg = mode.(ϕg,360)
+    ϕg = mod.(ϕg,360)
     sort!(ϕg)
 
     # Interpolate each element’s pattern to θg, ϕg
