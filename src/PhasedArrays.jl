@@ -26,6 +26,7 @@ export ElementPattern,
     IsotropicPattern,
     FarfieldSource,
     element_gain,
+    interpolate_custom_array!,
     compute_dipole_pattern
 export ULA, URA,
     RingArray,
